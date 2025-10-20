@@ -208,7 +208,8 @@ def experiment(args):
             "f1": f1,
             "accuracy": accuracy
         }
-
+        print('dba_gpt')
+        print(filenames)
         logging.info(f"{result}")
         with open(filename.split(".json")[0] + "_dna_gpt_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

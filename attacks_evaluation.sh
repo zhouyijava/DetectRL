@@ -25,11 +25,12 @@ echo 'There is the result of Fast_DetectGPT_evaluation.py above'
 python $Detectors_path/binoculars_evaluation.py --test_data_path $Task1_path/direct_prompt_test.json $Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
 echo 'There is the result of binoculars_evaluation.py above'
 
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/direct_prompt_train.json, --test_data_path $Task1_path/direct_prompt_test.json --transfer_test_data_path $Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/prompt_attacks_train.json, --test_data_path $Task1_path/prompt_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/paraphrase_attacks_train.json --test_data_path $Task1_path/paraphrase_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/perturbation_attacks_train.json --test_data_path $Task1_path/perturbation_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/data_mixing_train.json, --test_data_path $Task1_path/data_mixing_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json
+python $Detectors_path/train_roberta.py --train_data_path $Task1_path/direct_prompt_train.json, --test_data_path $Task1_path/direct_prompt_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task1_path/prompt_attacks_train.json, --test_data_path $Task1_path/prompt_attacks_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task1_path/paraphrase_attacks_train.json --test_data_path $Task1_path/paraphrase_attacks_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task1_path/perturbation_attacks_train.json --test_data_path $Task1_path/perturbation_attacks_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task1_path/data_mixing_train.json, --test_data_path $Task1_path/data_mixing_test.json,
+
 
 # Task2
 python $Detectors_path/zero_shot_transfer_evaluation.py --method likelihood --test_data_path $Task2_path/direct_prompt_test.json, --transfer_data_path $Task2_path/prompt_attacks_test.json,$Task2_path/paraphrase_attacks_test.json,$Task2_path/perturbation_attacks_test.json,$Task2_path/data_mixing_test.json
@@ -120,8 +121,8 @@ python $Detectors_path/zero_shot_transfer_evaluation.py --method Fast_DetectGPT 
 echo 'The result of Fast_DetectGPT'
 
 
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/direct_prompt_train.json, --test_data_path $Task1_path/direct_prompt_test.json --transfer_test_data_path $Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/prompt_attacks_train.json, --test_data_path $Task1_path/prompt_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/paraphrase_attacks_train.json --test_data_path $Task1_path/paraphrase_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/perturbation_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/perturbation_attacks_train.json --test_data_path $Task1_path/perturbation_attacks_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/data_mixing_test.json
-python $Detectors_path/train_roberta.py --train_data_path $Task1_path/data_mixing_train.json, --test_data_path $Task1_path/data_mixing_test.json --transfer_test_data_path $Task1_path/direct_prompt_test.json,$Task1_path/prompt_attacks_test.json,$Task1_path/paraphrase_attacks_test.json,$Task1_path/perturbation_attacks_test.json
+python $Detectors_path/train_roberta.py --train_data_path $Task2_path/direct_prompt_train.json, --test_data_path $Task2_path/prompt_attacks_test.json,$Task2_path/paraphrase_attacks_test.json,$Task2_path/perturbation_attacks_test.json,$Task2_path/data_mixing_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task2_path/prompt_attacks_train.json, --test_data_path $Task2_path/direct_prompt_test.json,$Task2_path/paraphrase_attacks_test.json,$Task2_path/perturbation_attacks_test.json,$Task2_path/ata_mixing_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task2_path/paraphrase_attacks_train.json --test_data_path $Task2_path/direct_prompt_test.json,$Task2_path/prompt_attacks_test.json,$Task2_path/perturbation_attacks_test.json,$Task2_path/data_mixing_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task2_path/perturbation_attacks_train.json --test_data_path $Task2_path/direct_prompt_test.json,$Task2_path/prompt_attacks_test.json,$Task2_path/paraphrase_attacks_test.json,$Task2_path/data_mixing_test.json,
+python $Detectors_path/train_roberta.py --train_data_path $Task2_path/data_mixing_train.json, --test_data_path $Task2_path/direct_prompt_test.json,$Task2_path/prompt_attacks_test.json,$Task2_path/paraphrase_attacks_test.json,$Task2_path/perturbation_attacks_test.json,

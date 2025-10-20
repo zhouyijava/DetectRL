@@ -5,7 +5,6 @@ import torch
 import argparse
 import json
 from tqdm import tqdm
-from metrics import get_roc_metrics
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -15,7 +14,6 @@ def get_sampling_discrepancy_analytic(logits_ref, logits_score, labels):
     assert logits_score.shape[0] == 1
     assert labels.shape[0] == 1
     if logits_ref.size(-1) != logits_score.size(-1):
-        # print(f"WARNING: vocabulary size mismatch {logits_ref.size(-1)} vs {logits_score.size(-1)}.")
         vocab_size = min(logits_ref.size(-1), logits_score.size(-1))
         logits_ref = logits_ref[:, :, :vocab_size]
         logits_score = logits_score[:, :, :vocab_size]
@@ -31,25 +29,34 @@ def get_sampling_discrepancy_analytic(logits_ref, logits_score, labels):
     return discrepancy.item()
 
 def get_text_crit(text, args, model_config):
-    tokenized = model_config["scoring_tokenizer"](text, return_tensors="pt",
-                                  return_token_type_ids=False).to(args.DEVICE)
-    labels = tokenized.input_ids[:, 1:]
-    with torch.no_grad():
-        logits_score = model_config["scoring_model"](**tokenized).logits[:, :-1]
-        if args.reference_model == args.scoring_model:
-            logits_ref = logits_score
-        else:
-            tokenized = model_config["reference_tokenizer"](text, return_tensors="pt",
-                                       return_token_type_ids=False).to(args.DEVICE)
-            assert torch.all(tokenized.input_ids[:, 1:] == labels), "Tokenizer is mismatch."
-            logits_ref = model_config["reference_model"](**tokenized).logits[:, :-1]
-        text_crit = get_sampling_discrepancy_analytic(logits_ref, logits_score, labels)
-
-    return text_crit
+    max_length = 2048  # 模型最大序列长度
+    try:
+        tokenized = model_config["scoring_tokenizer"](text, return_tensors="pt",
+                                                     return_token_type_ids=False,
+                                                     truncation=True, max_length=max_length).to(args.DEVICE)
+        labels = tokenized.input_ids[:, 1:]
+        if labels.size(1) == 0:
+            logging.warning(f"文本 '{text[:50]}...' 分词后为空，跳过处理。")
+            return None
+        with torch.no_grad():
+            logits_score = model_config["scoring_model"](**tokenized).logits[:, :-1]
+            if args.reference_model == args.scoring_model:
+                logits_ref = logits_score
+            else:
+                tokenized = model_config["reference_tokenizer"](text, return_tensors="pt",
+                                                              return_token_type_ids=False,
+                                                              truncation=True, max_length=max_length).to(args.DEVICE)
+                assert torch.all(tokenized.input_ids[:, 1:] == labels), "Tokenizer is mismatch."
+                logits_ref = model_config["reference_model"](**tokenized).logits[:, :-1]
+            text_crit = get_sampling_discrepancy_analytic(logits_ref, logits_score, labels)
+        return text_crit
+    except Exception as e:
+        logging.error(f"处理文本 '{text[:50]}...' 时出错: {str(e)}")
+        return None
 
 def experiment(args):
-    # load model
-    logging.info(f"Loading reference model of type {args.reference_model}...")
+    # 加载模型
+    logging.info(f"加载参考模型 {args.reference_model}...")
     reference_tokenizer = AutoTokenizer.from_pretrained(args.reference_model)
     reference_model = AutoModelForCausalLM.from_pretrained(args.reference_model)
     reference_model.eval()
@@ -67,59 +74,37 @@ def experiment(args):
         "scoring_model": scoring_model,
     }
 
+    # 加载测试数据
     filenames = args.test_data_path.split(",")
     for filename in filenames:
-        logging.info(f"Test in {filename}")
+        logging.info(f"处理测试数据 {filename}")
         test_data = json.load(open(filename, "r"))
-        # test_data = test_data[:10]
+
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
 
-        predictions = {'human': [], 'llm': []}
+        results = []
         for item in tqdm(test_data):
-            text = item["text"]
-            label = item["label"]
+            text = item.get("text")
+            if not text:  # 如果 text 为空或缺失
+                text = item["comments"]
             text_crit = get_text_crit(text, args, model_config)
-
-            item['text_crit'] = text_crit
-
-            if label == "human":
-                predictions['human'].append(text_crit)
-            elif label == "llm":
-                predictions['llm'].append(text_crit)
+            if text_crit is not None:
+                results.append({"global_id": item.get("global_id", None),"text": text, "text_crit": text_crit})
             else:
-                raise ValueError(f"Unknown label {label}")
+                logging.warning(f"文本 '{text[:50]}...' 处理失败，跳过。")
 
-        predictions['human'] = [i for i in predictions['human'] if np.isfinite(i)]
-        predictions['llm'] = [i for i in predictions['llm'] if np.isfinite(i)]
-
-        roc_auc, optimal_threshold, conf_matrix, precision, recall, f1, accuracy = get_roc_metrics(predictions['human'],
-                                                                                                   predictions['llm'])
-        result = {
-            "roc_auc": roc_auc,
-            "optimal_threshold": optimal_threshold,
-            "conf_matrix": conf_matrix,
-            "precision": precision,
-            "recall": recall,
-            "f1": f1,
-            "accuracy": accuracy
-        }
-        print('fast_detet')
-        print(filenames)
-        logging.info(f"{result}")
-        with open(filename.split(".json")[0] + "_Fast_DetectGPT_data.json", "w") as f:
-            json.dump(test_data, f, indent=4)
-
-        with open(filename.split(".json")[0] + "_Fast_DetectGPT_result.json", "w") as f:
-            json.dump(result, f, indent=4)
-
+        # 保存结果
+        output_filename = filename.split(".json")[0] + "_Fast_DetectGPT_results.json"
+        with open(output_filename, "w") as f:
+            json.dump(results, f, indent=4, ensure_ascii=False)
+        logging.info(f"结果已保存至 {output_filename}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_data_path', type=str, required=True,
-                        help="Path to the test data. could be several files with ','. "
-                             "Note that the data should have been perturbed.")
+                        help="Path to the test data. Could be several files separated by ','.")
     parser.add_argument('--reference_model', type=str, default="EleutherAI/gpt-neo-2.7B")
     parser.add_argument('--scoring_model', type=str, default="EleutherAI/gpt-j-6B")
     parser.add_argument('--DEVICE', default="cuda", type=str, required=False)

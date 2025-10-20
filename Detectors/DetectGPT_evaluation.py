@@ -35,7 +35,7 @@ def experiment(args):
     for filename in filenames:
         logging.info(f"Test in {filename}")
         test_data = json.load(open(filename, "r"))
-
+        # test_data = test_data[:10]
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
@@ -104,7 +104,8 @@ def experiment(args):
             }
 
             results[f"{n_perturbation}_perturbation"] = result
-
+        print('detectgpt')
+        print(filenames)
         print(f"{results}")
         with open(filename.split(".json")[0] + "_DetectGPT_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

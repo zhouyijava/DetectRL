@@ -2,9 +2,9 @@ import torch
 import torch.nn.functional as F
 
 
-def get_entropy(text, args, tokenizer, model):
+def get_entropy(text, args, tokenizer, model, max_tokens):
     with torch.no_grad():
-        tokenized = tokenizer(text, return_tensors="pt").to(args.DEVICE)  # input_ids + mask
+        tokenized = tokenizer(text, return_tensors="pt",truncation=True,max_length=max_tokens).to(args.DEVICE)  # input_ids + mask
         logits = model(**tokenized).logits[:, :-1]
         neg_entropy = F.softmax(logits, dim=-1) * F.log_softmax(logits, dim=-1)
         return -neg_entropy.sum(-1).mean().item()

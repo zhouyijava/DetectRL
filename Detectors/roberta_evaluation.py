@@ -63,7 +63,8 @@ def experiment(args):
             result["model_type"] = "xlm-roberta-base"
         if "xlm-roberta-large" in args.model_name:
             result["model_type"] = "xlm-roberta-large"
-
+        print('roberta')
+        print(filenames)
         logging.info(f"{result}")
         with open(filename.split(".json")[0] + f"_{args.model_name}_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

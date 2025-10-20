@@ -113,7 +113,8 @@ def experiment(args):
             }
 
             results[f"{n_perturbation}_perturbation"] = result
-
+        print('npr')
+        print(filenames)
         print(f"{results}")
         with open(filename.split(".json")[0] + "_NPR_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

@@ -58,7 +58,8 @@ def experiment(args):
             "f1": f1,
             "accuracy": accuracy
         }
-
+        print('rank')
+        print(filenames)
         print(f"{result}")
         with open(filename.split(".json")[0] + "_rank_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

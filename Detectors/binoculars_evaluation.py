@@ -78,7 +78,8 @@ def experiment(args):
             "accuracy": accuracy,
             "tpr_at_fpr_0_01": tpr_at_fpr_0_01,
         }
-
+        print('binoculars')
+        print(filenames)
         logging.info(f"{result}")
         with open(filename.split(".json")[0] + "_bino_data.json", "w") as f:
             json.dump(test_data, f, indent=4)

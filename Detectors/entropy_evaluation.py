@@ -59,7 +59,8 @@ def experiment(args):
             "f1": f1,
             "accuracy": accuracy
         }
-
+        print('entropy')
+        print(filenames)
         print(f"{result}")
         with open(filename.split(".json")[0] + "_entropy_data.json", "w") as f:
             json.dump(test_data, f, indent=4)
