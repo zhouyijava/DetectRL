@@ -151,7 +151,7 @@ def experiment(args):
         np.random.seed(args.seed)
 
         # 分块处理
-        chunk_size = 500a
+        chunk_size = 500
         total_items = len(test_data)
         total_chunks = (total_items + chunk_size - 1) // chunk_size  # 向上取整
         
