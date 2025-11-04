@@ -1,0 +1,8 @@
+/**/*.json
+/**/*classifier
+/**/*results
+/**/__pycache__/
+/**/*.out
+/**/*.log
+/**/*.err
+

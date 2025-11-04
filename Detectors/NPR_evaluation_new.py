@@ -8,7 +8,7 @@ import tqdm
 import argparse
 import json
 from DetectGPT import perturb_texts
-from rank import get_rank, get_ranks
+from rank import get_rank_safe as get_rank, get_ranks
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM
 import re
 import gc
@@ -111,7 +111,132 @@ def process_chunk(chunk, args, model_config, chunk_idx, total_chunks, filename):
             item["perturbed_text_logrank"] = [None for _ in range(max(args.n_perturbation_list))]
             for n_perturbation in args.n_perturbation_list:
                 item[f"npr_{n_perturbation}"] = None
-    
+    # # region---------- Start: safer compute ranks with diagnostics ----------
+    # def tensor_info(name, tensor):
+    #     try:
+    #         if tensor is None:
+    #             logging.info(f"[TENSOR INFO] {name}: None")
+    #             return
+    #         if isinstance(tensor, torch.Tensor):
+    #             logging.info(f"[TENSOR INFO] {name}: shape={tuple(tensor.shape)}, dtype={tensor.dtype}, device={tensor.device}")
+    #             if tensor.numel() > 0 and tensor.is_floating_point():
+    #                 logging.info(f"    min={float(torch.nanmin(tensor))}, max={float(torch.nanmax(tensor))}, has_nan={bool(torch.isnan(tensor).any())}")
+    #             elif tensor.numel() > 0:
+    #                 logging.info(f"    min={int(torch.min(tensor).cpu().item())}, max={int(torch.max(tensor).cpu().item())}")
+    #     except Exception as ex:
+    #         logging.warning(f"[TENSOR INFO] failed to inspect {name}: {ex}")
+
+    # def diagnose_text_failure(text, idx):
+    #     """
+    #     当 GPU 报错时，尽量把可用信息写入日志并在 CPU 上复现前向推理/推断，以获取更明确的错误堆栈。
+    #     """
+    #     logging.error(f"Diagnosing failure for item index {idx}, text snippet: {repr(text[:200])}")
+    #     try:
+    #         # Tokenize with base tokenizer
+    #         tokenized = base_tokenizer(text, return_tensors="pt", truncation=False)
+    #         input_ids = tokenized.get("input_ids")
+    #         logging.info("Base tokenizer vocab_size = %s", getattr(base_model.config, "vocab_size", "N/A"))
+    #         if input_ids is not None:
+    #             tensor_info("input_ids", input_ids)
+    #             # 最大 token id
+    #             try:
+    #                 max_id = int(torch.max(input_ids).item())
+    #                 logging.info(f"    max token id = {max_id}")
+    #             except Exception:
+    #                 logging.info("    could not get max token id")
+    #         # Try running model on CPU (safer) to reproduce and catch CPU exception
+    #         logging.info("Attempting a CPU forward pass to reproduce error...")
+    #         try:
+    #             cpu_model = base_model.to("cpu")
+    #             cpu_model.eval()
+    #             with torch.no_grad():
+    #                 # Move tokenized tensors to cpu
+    #                 tokenized_cpu = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in tokenized.items()}
+    #                 _ = cpu_model(**tokenized_cpu)
+    #             logging.info("CPU forward pass succeeded (no exception). GPU-only issue or non-deterministic.")
+    #         except Exception as cpu_ex:
+    #             logging.error(f"CPU forward pass raised exception: {repr(cpu_ex)}")
+    #     except Exception as outer_ex:
+    #         logging.error(f"Diagnose failed: {repr(outer_ex)}")
+
+    # # 将 base_model 放到 cuda 并逐个样本处理，包裹诊断
+    # base_model.eval()
+    # base_device = "cuda" if torch.cuda.is_available() else "cpu"
+    # try:
+    #     base_model.to(base_device)
+    # except Exception as e:
+    #     logging.error(f"Failed to move base_model to {base_device}: {e}")
+    #     # 如果直接移动模型就失败，尝试清理并继续
+    #     clear_gpu_memory()
+    #     base_model.to("cpu")
+
+    # for idx_in_chunk, item in enumerate(tqdm.tqdm(chunk, desc=f"Computing ranks for chunk {chunk_idx+1}/{total_chunks}")):
+    #     global_idx = chunk_idx * len(chunk) + idx_in_chunk
+    #     text = item.get("text") or item.get("comments")
+    #     if text:
+    #         text = clean_text(text)
+    #     try:
+    #         # Debugging: check tokenization for this text before calling get_rank
+    #         try:
+    #             sample_tokens = base_tokenizer(text, return_tensors="pt", truncation=False)
+    #             input_ids = sample_tokens.get("input_ids")
+    #             if input_ids is not None:
+    #                 # log info but avoid huge prints
+    #                 logging.debug(f"[Token check] idx={global_idx}, token_len={input_ids.shape[1]}")
+    #                 vocab_size = getattr(base_model.config, "vocab_size", None)
+    #                 if vocab_size is not None:
+    #                     try:
+    #                         max_tok = int(torch.max(input_ids).item())
+    #                         if max_tok >= vocab_size:
+    #                             logging.error(f"[IndexOutOfRange] text idx={global_idx} has token id {max_tok} >= vocab_size {vocab_size}")
+    #                             # Mark and skip, also diagnose
+    #                             diagnose_text_failure(text, global_idx)
+    #                             item["text_logrank"] = None
+    #                             item["perturbed_text_logrank"] = [None for _ in range(max(args.n_perturbation_list))]
+    #                             for n_perturbation in args.n_perturbation_list:
+    #                                 item[f"npr_{n_perturbation}"] = None
+    #                             continue
+    #                     except Exception as exx:
+    #                         logging.debug(f"Could not compute max token id for idx={global_idx}: {exx}")
+    #         except Exception as token_ex:
+    #             logging.warning(f"Tokenization check failed for idx={global_idx}: {token_ex}")
+
+    #         # 正常调用 get_rank / get_ranks（假设函数内部做了自己的 .to(device) 调用）
+    #         item["text_logrank"] = get_rank(text, args, base_tokenizer, base_model)
+    #         logging.info(f"Text logrank idx={global_idx}: {item['text_logrank']}")
+    #         perturbed_text_rank = get_ranks(item.get("perturbed_text", []), args, base_tokenizer, base_model, log=True)
+    #         item["perturbed_text_logrank"] = perturbed_text_rank
+    #         logging.info(f"Perturbed text logranks idx={global_idx}: {perturbed_text_rank[:2]}")
+
+    #         # Calculate NPR for each perturbation level
+    #         for n_perturbation in args.n_perturbation_list:
+    #             valid_ranks = [rank for rank in perturbed_text_rank[:n_perturbation] if rank is not None]
+    #             if valid_ranks and item["text_logrank"] is not None and item["text_logrank"] != 0:
+    #                 mean_perturbed_logrank = np.mean(valid_ranks)
+    #                 item[f"npr_{n_perturbation}"] = mean_perturbed_logrank / item["text_logrank"]
+    #                 logging.info(f"NPR_{n_perturbation} idx={global_idx}: {item[f'npr_{n_perturbation}']}")
+    #             else:
+    #                 item[f"npr_{n_perturbation}"] = None
+    #                 logging.warning(f"Could not compute NPR_{n_perturbation} for text idx={global_idx}")
+    #     except Exception as e:
+    #         # 出现CUDA/其它异常时：记录、诊断并继续下一个样本
+    #         logging.error(f"Exception when processing idx={global_idx}: {repr(e)}")
+    #         try:
+    #             # 同步 CUDA，确保错误不是异步积累
+    #             if torch.cuda.is_available():
+    #                 torch.cuda.synchronize()
+    #         except Exception:
+    #             pass
+    #         diagnose_text_failure(text, global_idx)
+    #         # 标记为失败，保持结构
+    #         item["text_logrank"] = None
+    #         item["perturbed_text_logrank"] = [None for _ in range(max(args.n_perturbation_list))]
+    #         for n_perturbation in args.n_perturbation_list:
+    #             item[f"npr_{n_perturbation}"] = None
+    #         # 清理CUDA缓存后继续
+    #         clear_gpu_memory()
+    # # endregion---------- End: safer compute ranks with diagnostics ----------
+
     base_model.to("cpu")
     clear_gpu_memory()
     
@@ -193,5 +318,4 @@ if __name__ == '__main__':
     parser.add_argument('--DEVICE', default="cuda", type=str, required=False)
     parser.add_argument('--seed', default=2023, type=int, required=False)
     args = parser.parse_args()
-
     experiment(args)

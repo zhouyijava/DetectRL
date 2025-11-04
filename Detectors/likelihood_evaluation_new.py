@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 def get_ll(text, args, tokenizer, model):
     with torch.no_grad():
-        tokenized = tokenizer(text, return_tensors="pt").to(args.DEVICE)
-        labels = tokenized['input_ids']
+        tokenized = tokenizer(text, return_tensors="pt", truncation=True,max_length=2048).to(args.DEVICE)
+        labels = tokenized.input_ids.clone()
         if labels.nelement() == 0:
             logging.error(f"Empty input: {text}")
             return None

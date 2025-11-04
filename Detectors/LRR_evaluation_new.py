@@ -147,6 +147,7 @@ def experiment(args):
 
         # Save LRR results
         output_result_file = filename.split(".json")[0] + "_LRR_result.json"
+        print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++++output_result_file\n',output_result_file)
         with open(output_result_file, "w") as f:
             json.dump(results, f, indent=4)
 
